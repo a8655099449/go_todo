@@ -3,7 +3,9 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"github.com/gin-gonic/gin"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/thinkerou/favicon"
 	"log"
 	"net/http"
@@ -104,9 +106,12 @@ func runGin() {
 	}
 }
 
+// 连接数据库
 func linkDb() {
 
-	db, err := sql.Open("mysql", "root:mmbb1234@/dbname")
+	var dsn = "root:mmbb1234@tcp(127.0.0.1:3306)/go_db?charset=utf8mb4&parseTime=true"
+
+	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		panic(err)
 	}
@@ -116,5 +121,7 @@ func linkDb() {
 	db.SetMaxOpenConns(10)
 	// 空闲的连接数
 	db.SetMaxIdleConns(10)
+
+	fmt.Printf("%v", db)
 
 }
