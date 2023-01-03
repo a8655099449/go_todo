@@ -1,0 +1,12 @@
+server:
+  port: 9000
+# 数据库配置
+datasource:
+  driverName: mysql
+  host: localhost
+  port: "3306"
+  database: go_db
+  username: root
+  password: mmbb1234
+  charset: utf8mb4
+  loc: Asia/Shanghai

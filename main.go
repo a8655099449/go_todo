@@ -1,20 +1,41 @@
 package main
 
 import (
+	"code2/api/router"
+	_ "code2/common/config"
+	"code2/common/database"
+	_ "code2/common/database"
+	"code2/model"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/spf13/viper"
 	"github.com/thinkerou/favicon"
 	"log"
 	"net/http"
 	"time"
 )
 
+var db *sql.DB
+
 func main() {
-	linkDb()
+
+	//linkDb()
+	runGin()
 }
+
+type User struct {
+	Name     string `json:"name"`
+	Accout   string `json:"accout"`
+	Password string `json:"password"`
+}
+
+func init() {
+	_ = database.DB.AutoMigrate(&model.Account{})
+}
+
 func Cors() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		method := c.Request.Method
@@ -50,12 +71,14 @@ func Cors() gin.HandlerFunc {
 }
 
 func runGin() {
-
+	gin.SetMode(gin.DebugMode)
 	app := gin.Default()
 	// 加载图标
 	app.Use(favicon.New("./assets/favicon.png"))
 	// 允许跨域
 	app.Use(Cors())
+
+	router.CollectRoute(app)
 
 	app.GET("/hello", func(context *gin.Context) {
 		context.JSON(http.StatusOK, gin.H{
@@ -88,21 +111,34 @@ func runGin() {
 			},
 		})
 	})
-
+	// 添加用户
 	app.POST("/user/create", func(c *gin.Context) {
 		// 获取body对象
 		data, _ := c.GetRawData()
-		var d map[string]interface{}
-		_ = json.Unmarshal(data, &d)
-		c.JSON(http.StatusOK, d)
+		var user User
+		_ = json.Unmarshal(data, &user)
+
+		res := user.insertUser()
+		if res {
+			c.JSON(http.StatusOK, gin.H{
+				"code": 0,
+				"data": "ok",
+			})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"code": 1000,
+				"data": "添加失败",
+			})
+		}
 	})
 
-	err := app.Run(":3000")
+	port := viper.GetString("server.port")
+	err := app.Run(":" + port)
 
 	if err != nil {
 		println(`服务器启动失败`)
 	} else {
-		println(`服务器启动成功：  http://localhost:3000/hello`)
+		println(`服务器启动成功：http://localhost:` + port)
 	}
 }
 
@@ -110,8 +146,8 @@ func runGin() {
 func linkDb() {
 
 	var dsn = "root:mmbb1234@tcp(127.0.0.1:3306)/go_db?charset=utf8mb4&parseTime=true"
-
-	db, err := sql.Open("mysql", dsn)
+	var err error
+	db, _ = sql.Open("mysql", dsn)
 	if err != nil {
 		panic(err)
 	}
@@ -124,4 +160,16 @@ func linkDb() {
 
 	fmt.Printf("%v", db)
 
+}
+
+// 添加一个用户
+func (u User) insertUser() bool {
+	s := "insert into user (name,accout,password) values (?,?,?)"
+	exec, err := db.Exec(s, u.Name, u.Accout, u.Password)
+	if err == nil {
+		id, _ := exec.LastInsertId()
+		log.Printf("插入成功，id为%v", id)
+		return true
+	}
+	return false
 }
